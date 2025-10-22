@@ -5,11 +5,14 @@ const { addBook,
     getBookById,
     updateBook,
     deleteBook} = require("../controllers/bookController");
-
+const {authMiddleware} = require("../middleware/authMiddleware");
 const checkRole = require("../middleware/roleMiddleware");
-router.post("/", checkRole("librarian"), addBook);
+
 router.get("/", getBooks);
 router.get("/:id", getBookById);
-router.put("/:id", checkRole("librarian"), updateBook);
-router.delete("/:id", checkRole("librarian"), deleteBook);
+
+router.post("/",authMiddleware, checkRole("librarian"), addBook);
+
+router.put("/:id",authMiddleware, checkRole("librarian"), updateBook);
+router.delete("/:id",authMiddleware, checkRole("librarian"), deleteBook);
 module.exports = router;

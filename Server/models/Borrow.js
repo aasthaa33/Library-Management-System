@@ -4,23 +4,26 @@ const borrowSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
+        required: true
     },
     bookId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Book"
+        ref: "Book",
+        required: true
     },
 
     borrowDate: {
         type: Date,
-        Default: Date.now
+        default: Date.now
     },
     returnDate: {
         type: Date,
-        Default: null
+        default: null
     },
     fineAmount: {
         type: Number
     }
-});
+},
+{timestamps: true});
 
 module.exports = mongoose.model("Borrow", borrowSchema);

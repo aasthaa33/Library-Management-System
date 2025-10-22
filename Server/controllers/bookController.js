@@ -1,16 +1,28 @@
 const Book = require("../models/Book");
 
-const addBook = async(req, res) =>{
-    try{
-    const book = new Book (req.body);
-    book.available = req.body.quantity;
+const addBook = async (req, res) => {
+  try {
+    const { title, author, isbn, publisher, quantity } = req.body;
+
+    const book = new Book({
+      title,
+      author,
+      isbn,
+      publisher,
+      quantity,
+      available: quantity,  // ✅ auto set available to match quantity
+    });
 
     await book.save();
-    res.status(201).json({message: 'Book added successfully', book});
-    } catch(err){
-        res.status(400).json({message: "Unable to add book", error: err.message});
-    } 
+    res.status(201).json(book);
+  } catch (error) {
+    console.error("Error creating book:", error);
+    res.status(500).json({ message: error.message });
+  }
 };
+
+
+
 
 const getBooks = async(req, res) => {
     try{
@@ -22,18 +34,14 @@ const getBooks = async(req, res) => {
 };
     
 
-const getBookById = async(req, res) => {
-    const bookId = req.params.id;
-
-    if(!bookId){
-        return res.status(400).json({message: "Book ID is required"});
-    }
-    try{
-        const book = await Book.find(bookId);
-        return res.status(200).json(book);
-    }catch(err){
-        return res.status(404).json({message: "Book not found", error: err.message});
-    }
+const getBookById = async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ message: "Book not found" });
+    return res.status(200).json({ book });
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to fetch book", error: err.message });
+  }
 };
 
 
@@ -53,8 +61,13 @@ const updateBook = async(req, res) => {
         const updatedBook = await Book.findByIdAndUpdate(bookId, updateData, {new: true});
         
         if(!updatedBook){
-            return res.status(404).json({message: "Book not found."});
+            return res.status(404).json({message: "Book not found."});  
         }
+
+        if (updateData.isbn) {
+        const other = await Book.findOne({ isbn: updateData.isbn, _id: { $ne: bookId } });
+        if (other) return res.status(400).json({ message: "ISBN already in use" });
+}
 
         return res.status(200).json(updatedBook);
     }catch(err){
@@ -72,12 +85,12 @@ const deleteBook = async(req, res) => {
     try{
         const deletedBook = await Book.findByIdAndDelete(bookId);
         if(!deletedBook){
-            res.status(404).json({message: "Book not found"});
+            return res.status(404).json({message: "Book not found"});
         }
 
         return res.status(200).json({message: "Book deleted successfully."});
     }catch(err){
-        return res.status(500).json({message: "Error deleting book", error: err.messaGE});
+        return res.status(500).json({message: "Error deleting book", error: err.message});
     }
 };
 
