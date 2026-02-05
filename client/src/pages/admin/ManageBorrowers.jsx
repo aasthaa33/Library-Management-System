@@ -31,12 +31,12 @@ const ManageBorrowers = () => {
       <div className="p-6 flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Manage Borrowers</h2>
-          <button
+          {/* <button
             onClick={() => navigate("/admin/dashboard")}
             className="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700"
           >
             Back to Dashboard
-          </button>
+          </button> */}
         </div>
  <div className="flex items-center w-full max-w-md border rounded-lg overflow-hidden">
   <input

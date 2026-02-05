@@ -1,86 +1,118 @@
-// AdminDashboard.jsx
-import { useState } from "react";
-  import axios from "axios";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { Search } from "lucide-react";
+import { Toaster, toast } from "react-hot-toast";
+
 
 export default function AdminDashboard() {
-  const [users, setUsers] = useState([
-    { id: 1, name: "Name 1", email: "Email 1", role: "Librarian", status: "Active" },
-    { id: 2, name: "Name 2", email: "Email 2", role: "Borrower", status: "Inactive" },
-    { id: 3, name: "Name 3", email: "Email 3", role: "Borrower", status: "Inactive" },
-    { id: 4, name: "Name 4", email: "Email 4", role: "Borrower", status: "Active" },
-    { id: 5, name: "Name 5", email: "Email 5", role: "Borrower", status: "Active" },
-  ]);
-
+  const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
-
   const [newLibrarian, setNewLibrarian] = useState({
     name: "",
     email: "",
     password: "",
   });
 
-  // Stats
-  const totalUsers = users.length;
-  const totalLibrarians = users.filter((u) => u.role === "Librarian").length;
-  const totalBorrowers = users.filter((u) => u.role === "Borrower").length;
+  // ✅ Fetch all users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get("http://localhost:5000/api/auth/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-  // Filtered users
+        setUsers(Array.isArray(res.data.users) ? res.data.users : []);
+      } catch (error) {
+        console.error("Fetch Users Error:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  // ✅ Stats
+  const totalUsers = users.length;
+  const totalLibrarians = users.filter((u) => u.role === "librarian").length;
+  const totalBorrowers = users.filter((u) => u.role === "borrower").length;
+
+  // ✅ Filtered users
   const filteredUsers = users.filter(
     (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.role.toLowerCase().includes(search.toLowerCase())
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase()) ||
+      u.role?.toLowerCase().includes(search.toLowerCase())
   );
 
- 
+  // ✅ Create Librarian
+  const handleCreateLibrarian = async () => {
+    if (!newLibrarian.name || !newLibrarian.email || !newLibrarian.password) {
+      console.error("Please fill all fields");
+      return;
+    }
 
-const handleCreateLibrarian = async () => {
-  if (!newLibrarian.name || !newLibrarian.email || !newLibrarian.password) {
-    alert("Please fill all fields");
-    return;
-  }
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        "http://localhost:5000/api/auth/register-librarian",
+        newLibrarian,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-  try {
-    const token = localStorage.getItem("token"); // Admin’s JWT from login
+      setUsers([...users, res.data.user]);
+      setNewLibrarian({ name: "", email: "", password: "" });
+      setShowModal(false);
 
-    const res = await axios.post(
-      "http://localhost:5000/api/auth/register-librarian",
-      {
-        name: newLibrarian.name,
-        email: newLibrarian.email,
-        password: newLibrarian.password,
-        phone: newLibrarian.phone || "", // optional
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    } catch (error) {
+      console.error("Create Librarian Error:", error);
+      toast.error(error.response?.data?.message || "Failed to create librarian");
+    }
+  };
 
-    // Update state with the new librarian from backend
-    setUsers([...users, res.data.user]);
+  // ✅ Delete User
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
 
-    setNewLibrarian({ name: "", email: "", password: "" });
-    setShowModal(false);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:5000/api/auth/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    alert("Librarian created successfully!");
-  } catch (error) {
-    console.error("Create Librarian Error:", error);
-    alert(error.response?.data?.message || "Failed to create librarian");
-  }
-};
+      setUsers(users.filter((u) => u._id !== id));
+      toast.success("User deleted successfully!");
+    } catch (error) {
+      console.error("Delete User Error:", error);
+      toast.error(error.response?.data?.message || "Failed to delete user");
+    }
+  };
 
+  // ✅ Edit / Toggle Status
+  const handleToggleStatus = async (id, currentStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      const updatedStatus = currentStatus === "Active" ? "Inactive" : "Active";
+
+      const res = await axios.patch(
+        `http://localhost:5000/api/auth/users/${id}`,
+        { status: updatedStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setUsers(users.map((u) => (u._id === id ? res.data.user : u)));
+      toast.success(`User status updated to ${updatedStatus}!`);
+    } catch (error) {
+      console.error("Update User Error:", error);
+      toast.error(error.response?.data?.message || "Failed to update user");
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
-
       <div className="p-6 flex flex-col gap-6">
         <h2 className="text-xl font-bold text-center">Admin Dashboard</h2>
 
-        
+        {/* ✅ Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
           <div className="bg-white p-6 shadow rounded">
             <p className="font-bold text-xl">{totalUsers}</p>
@@ -96,7 +128,7 @@ const handleCreateLibrarian = async () => {
           </div>
         </div>
 
-        {/* Search */}
+        {/* ✅ Search */}
         <div className="flex items-center w-full max-w-md border rounded-lg overflow-hidden mb-4">
           <input
             type="text"
@@ -105,12 +137,12 @@ const handleCreateLibrarian = async () => {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full px-4 py-2 focus:outline-none"
           />
-        <button className="px-3 text-gray-500 hover:text-blue-600">
-          <Search size={20} />
-        </button>
+          <button className="px-3 text-gray-500 hover:text-blue-600">
+            <Search size={20} />
+          </button>
         </div>
 
-        {/* User Table */}
+        {/* ✅ User Table */}
         <div className="bg-white shadow rounded">
           <table className="w-full border-collapse">
             <thead className="bg-gray-100">
@@ -124,16 +156,24 @@ const handleCreateLibrarian = async () => {
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
+                <tr key={user._id} className="hover:bg-gray-50">
                   <td className="border px-4 py-2">{user.name}</td>
                   <td className="border px-4 py-2">{user.email}</td>
                   <td className="border px-4 py-2">{user.role}</td>
-                  <td className="border px-4 py-2">{user.status}</td>
+                  <td className="border px-4 py-2">{user.status || "Active"}</td>
                   <td className="border px-4 py-2 text-center space-x-2">
-                    <button className="px-4 py-1 bg-gray-600 text-white rounded hover:bg-gray-700">
-                      Edit
+                    <button
+                      onClick={() =>
+                        handleToggleStatus(user._id, user.status || "Active")
+                      }
+                      className="px-4 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                    >
+                      {user.status === "Active" ? "Deactivate" : "Activate"}
                     </button>
-                    <button className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700">
+                    <button
+                      onClick={() => handleDeleteUser(user._id)}
+                      className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
                       Delete
                     </button>
                   </td>
@@ -150,8 +190,8 @@ const handleCreateLibrarian = async () => {
           </table>
         </div>
 
-        {/* Create Librarian */}
-        <div className="flex justify-end">
+        {/* ✅ Create Librarian */}
+        <div className="flex justify-end space-x-4">
           <button
             className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
             onClick={() => setShowModal(true)}
@@ -161,7 +201,7 @@ const handleCreateLibrarian = async () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* ✅ Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white p-6 rounded shadow-lg w-96">
@@ -214,6 +254,32 @@ const handleCreateLibrarian = async () => {
           </div>
         </div>
       )}
+
+      {/* ✅ Toast Container */}
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          duration: 3000,
+          success: {
+            style: {
+              background: "#f0fdf4",
+              color: "#166534",
+              border: "1px solid #22c55e",
+              fontWeight: "500",
+            },
+            iconTheme: { primary: "#22c55e", secondary: "#f0fdf4" },
+          },
+          error: {
+            style: {
+              background: "#fef2f2",
+              color: "#991b1b",
+              border: "1px solid #ef4444",
+              fontWeight: "500",
+            },
+            iconTheme: { primary: "#ef4444", secondary: "#fef2f2" },
+          },
+        }}
+      /> 
     </div>
   );
 }

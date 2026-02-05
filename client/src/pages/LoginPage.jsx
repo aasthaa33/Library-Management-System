@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../services/authService";
-import toast, { Toaster } from "react-hot-toast";
 import loginImg from "../assets/svgs/login.svg";
 
 const Login = () => {
@@ -22,7 +21,6 @@ const Login = () => {
     try {
       const response = await loginUser(formData);
       login(response.user, response.token);
-      toast.success("Login successful!");
 
       // Redirect based on role
       if (response.user.role === "admin") {
@@ -33,7 +31,7 @@ const Login = () => {
         navigate("/borrower/dashboard");
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Login failed");
+      console.error("Login error", err);
     } finally {
       setLoading(false);
     }
@@ -41,7 +39,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Toaster />
       <nav className="bg-blue-900 text-white flex justify-between items-center px-6 py-3">
         <h1 className="text-xl font-semibold">Readish</h1>
         <div className="flex items-center space-x-6">
