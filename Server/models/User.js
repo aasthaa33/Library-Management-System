@@ -11,7 +11,9 @@ const userSchema = new mongoose.Schema({
         enum: ["admin", "librarian","borrower"],
         default: "borrower"
     },
+    status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
     phone: {type: String},
+    avatar: {type: String, default: ""},
     lastLogin: {type: Date}
 }, {timestamps: true});
 
