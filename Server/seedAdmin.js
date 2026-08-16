@@ -10,11 +10,13 @@ const seedAdmin = async () => {
     await connectDB();
 
     
-    const existingAdmin = await User.findOne({ role: "admin" });
-    if (existingAdmin) {
-      console.log("Admin already exists:", existingAdmin.email);
-      process.exit(0);
-    }
+    const existingAdmin = await User.findOne({ 
+  $or: [{ role: "admin" }, { email: "ashwinshahi092@gmail.com" }] 
+});
+if (existingAdmin) {
+  console.log("Admin already exists:", existingAdmin.email);
+  process.exit(0);
+}
 
  
     const hashedPassword = await bcrypt.hash("admin123", 10);
@@ -22,7 +24,7 @@ const seedAdmin = async () => {
    
     const adminUser = new User({
       name: "Ashwin",
-      email: "admin@library.com",
+      email: "ashwinshahi092@gmail.com",
       password: hashedPassword,
       role: "admin",
       phone: "9812345678"
