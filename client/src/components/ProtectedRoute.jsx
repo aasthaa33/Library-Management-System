@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 
 export default function ProtectedRoute({ children, allowedRoles }) {
-  const role = localStorage.getItem("role");
+  const role = sessionStorage.getItem("role");
 
   // If no role (public), redirect to register
   if (!role) {
