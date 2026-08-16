@@ -14,7 +14,7 @@ export default function AdminDashboard() {
     password: "",
   });
 
-  // ✅ Fetch all users
+  
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -31,12 +31,12 @@ export default function AdminDashboard() {
     fetchUsers();
   }, []);
 
-  // ✅ Stats
+  //  Stats
   const totalUsers = users.length;
   const totalLibrarians = users.filter((u) => u.role === "librarian").length;
   const totalBorrowers = users.filter((u) => u.role === "borrower").length;
 
-  // ✅ Filtered users
+  //  Filtered users
   const filteredUsers = users.filter(
     (u) =>
       u.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -44,7 +44,7 @@ export default function AdminDashboard() {
       u.role?.toLowerCase().includes(search.toLowerCase())
   );
 
-  // ✅ Create Librarian
+  //  Create Librarian
   const handleCreateLibrarian = async () => {
     if (!newLibrarian.name || !newLibrarian.email || !newLibrarian.password) {
       console.error("Please fill all fields");
@@ -69,7 +69,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ✅ Delete User
+  //  Delete User
   const handleDeleteUser = async (id) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
 
@@ -87,7 +87,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ✅ Edit / Toggle Status
+  //  Edit / Toggle Status
   const handleToggleStatus = async (id, currentStatus) => {
     try {
       const token = localStorage.getItem("token");
@@ -112,7 +112,7 @@ export default function AdminDashboard() {
       <div className="p-6 flex flex-col gap-6">
         <h2 className="text-xl font-bold text-center">Admin Dashboard</h2>
 
-        {/* ✅ Stats */}
+        {/*  Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
           <div className="bg-white p-6 shadow rounded">
             <p className="font-bold text-xl">{totalUsers}</p>
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ✅ Search */}
+        {/*  Search */}
         <div className="flex items-center w-full max-w-md border rounded-lg overflow-hidden mb-4">
           <input
             type="text"
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* ✅ User Table */}
+        {/*  User Table */}
         <div className="bg-white shadow rounded">
           <table className="w-full border-collapse">
             <thead className="bg-gray-100">
