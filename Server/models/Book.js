@@ -8,7 +8,8 @@ const bookSchema = new mongoose.Schema({
     quantity: {type: Number,
          required: true,
         min: 1},
-    available: {type:Number, required: true}
+    available: {type:Number, required: true},
+    image: { type: String, default: "" }, 
 },
 {timestamps: true}
 );
