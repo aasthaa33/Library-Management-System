@@ -36,7 +36,7 @@ const borrowBook = async(req, res) =>{
 
 const returnBook = async(req,res) => {
     const {bookId} = req.body;
-    const userId = req.user._id;
+    const userId = req.user.id;
 
     if (!userId || !bookId) {
         return res.status(400).json({ message: "User ID and Book ID are required" });
@@ -63,7 +63,7 @@ const returnBook = async(req,res) => {
 
 const getAllBorrows = async (req, res) => {
   try {
-    const borrows = await Borrow.find().populate('userId', 'name email').populate('bookId', 'title author isbn');
+    const borrows = await Borrow.find().populate('userId', 'name email').populate('bookId', 'title author isbn image');
     return res.status(200).json({ borrows });
   } catch (err) {
     console.error(err);
@@ -73,7 +73,7 @@ const getAllBorrows = async (req, res) => {
 
 const getBorrows = async (req, res) => {
     try{
-       const borrows = await Borrow.find({ userId: req.user.id }).populate('bookId', 'title author isbn');
+       const borrows = await Borrow.find({ userId: req.user.id }).populate('bookId', 'title author isbn image');
     return res.status(200).json({ borrows });
   } catch (err) {
     console.error(err);
