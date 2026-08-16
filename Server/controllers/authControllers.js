@@ -13,7 +13,7 @@ const signToken = (user) => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password,role, phone } = req.body;
 
     if (!name || !email || !password)
       return res.status(400).json({ message: "Name, email and password are required" });
@@ -40,8 +40,8 @@ exports.register = async (req, res) => {
       name,
       email,
       password: hashedPassword,
+      role,
       phone,
-      role: "borrower"
     });
     await user.save();
 
@@ -137,3 +137,114 @@ exports.login = async(req, res) =>{
 }catch(err){
     res.status(500).json({message: "Server error"});
 }};
+
+// Get own profile (any authenticated user)
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json({ user });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Update own profile (name, email, phone, avatar)
+exports.updateMe = async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+    const updates = {};
+
+    if (name) {
+      if (!/^[A-Za-z\s]+$/.test(name))
+        return res.status(400).json({ message: "Name must contain only letters and spaces" });
+      updates.name = name;
+    }
+
+    if (email) {
+      if (!/^\S+@\S+\.\S+$/.test(email))
+        return res.status(400).json({ message: "Invalid email format" });
+      const existing = await User.findOne({ email, _id: { $ne: req.user.id } });
+      if (existing) return res.status(400).json({ message: "Email already in use" });
+      updates.email = email;
+    }
+
+    if (phone !== undefined) updates.phone = phone;
+
+    if (req.file) {
+      updates.avatar = `/uploads/avatars/${req.file.filename}`;
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json({ message: "Profile updated successfully", user });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// Get all users Admin only
+exports.getAllUsers = async (req, res) =>{
+  try{
+    const users = await User.find().select("-password");
+    res.status(200).json({users});
+  } catch 
+  (error){
+    console.error("Get Users Error: ", err);
+    res.status(500).json({message: "Server error"});
+  }
+};
+
+
+
+
+// Delete user (admin only)
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Admin cannot delete their own account
+    if (req.user.id === id) {
+      return res.status(400).json({ message: "You cannot delete your own account" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    await User.findByIdAndDelete(id);
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (err) {
+    console.error("Delete User Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Update user status (admin only)
+exports.updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["Active", "Inactive"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Status updated", user });
+  } catch (err) {
+    console.error("Update Status Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
