@@ -8,9 +8,9 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// ✅ Automatically attach JWT if exists
+// ✅ Automatically attach JWT if exists (sessionStorage is tab-isolated)
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
