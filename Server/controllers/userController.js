@@ -1,5 +1,5 @@
 const User = require("../models/User");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
 // ✅ Create User
 const CreateUser = async (req, res) => {
@@ -16,7 +16,7 @@ const CreateUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid email format" });
     }
     if (password.length < 8) {
-      return res.status(400).json({ messgae: "Password must be at least 8 characters" });
+      return res.status(400).json({ message: "Password must be at least 8 characters" });
     }
 
     const UserExists = await User.findOne({ email });
@@ -30,8 +30,7 @@ const CreateUser = async (req, res) => {
       email,
       password: hashedPassword,
       role,
-      phone,
-      status: "active", // 👈 default status
+      phone
     });
 
     await user.save();
