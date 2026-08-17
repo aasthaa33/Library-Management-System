@@ -18,8 +18,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/auth/users", {
+        const token = sessionStorage.getItem("token");
+        const res = await axios.get("http://localhost:5000/api/users", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -52,7 +52,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const res = await axios.post(
         "http://localhost:5000/api/auth/register-librarian",
         newLibrarian,
@@ -70,42 +70,43 @@ export default function AdminDashboard() {
   };
 
   //  Delete User
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+  //  Delete User
+const handleDeleteUser = async (id) => {
+  if (!window.confirm("Are you sure you want to delete this user?")) return;
 
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/api/auth/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  try {
+    const token = sessionStorage.getItem("token");
+    await axios.delete(`http://localhost:5000/api/users/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      setUsers(users.filter((u) => u._id !== id));
-      toast.success("User deleted successfully!");
-    } catch (error) {
-      console.error("Delete User Error:", error);
-      toast.error(error.response?.data?.message || "Failed to delete user");
-    }
-  };
+    setUsers(users.filter((u) => u._id !== id));
+    toast.success("User deleted successfully!");
+  } catch (error) {
+    console.error("Delete User Error:", error);
+    toast.error(error.response?.data?.message || "Failed to delete user");
+  }
+};
 
-  //  Edit / Toggle Status
-  const handleToggleStatus = async (id, currentStatus) => {
-    try {
-      const token = localStorage.getItem("token");
-      const updatedStatus = currentStatus === "Active" ? "Inactive" : "Active";
+//  Edit / Toggle Status
+const handleToggleStatus = async (id, currentStatus) => {
+  try {
+    const token = sessionStorage.getItem("token");
+    const updatedStatus = currentStatus === "Active" ? "Inactive" : "Active";
 
-      const res = await axios.patch(
-        `http://localhost:5000/api/auth/users/${id}`,
-        { status: updatedStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+    const res = await axios.put(
+      `http://localhost:5000/api/users/${id}/status`,
+      { status: updatedStatus },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-      setUsers(users.map((u) => (u._id === id ? res.data.user : u)));
-      toast.success(`User status updated to ${updatedStatus}!`);
-    } catch (error) {
-      console.error("Update User Error:", error);
-      toast.error(error.response?.data?.message || "Failed to update user");
-    }
-  };
+    setUsers(users.map((u) => (u._id === id ? res.data.user : u)));
+    toast.success(`User status updated to ${updatedStatus}!`);
+  } catch (error) {
+    console.error("Update User Error:", error);
+    toast.error(error.response?.data?.message || "Failed to update user");
+  }
+};
 
   return (
     <div className="min-h-screen flex flex-col">
