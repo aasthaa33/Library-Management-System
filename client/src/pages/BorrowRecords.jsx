@@ -1,85 +1,51 @@
-import { useState } from "react";
-import { Menu, X } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { getAllBorrows } from "../services/bookService";
 
 export default function BorrowRecords() {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const location = useLocation();
   const navigate = useNavigate();
 
-  // Function to determine if the current path matches the menu item
-  const isActive = (path) => location.pathname === path;
+  useEffect(() => {
+    fetchRecords();
+  }, []);
 
-  const records = [
-    { id: 1, borrower: "Name 1", book: "Book 1", borrowDate: "2 Dec", returnDate: "N/A" },
-    { id: 2, borrower: "Name 2", book: "Book 2", borrowDate: "4 Dec", returnDate: "10 Dec" },
-    { id: 3, borrower: "Name 3", book: "Book 3", borrowDate: "4 Dec", returnDate: "N/A" },
-    { id: 4, borrower: "Name 4", book: "Book 4", borrowDate: "2 Aug", returnDate: "10 Aug" },
-    { id: 5, borrower: "Name 5", book: "Book 5", borrowDate: "16 Aug", returnDate: "20 Aug" },
-  ];
+  const fetchRecords = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await getAllBorrows();
+      setRecords(res?.borrows || []);
+    } catch (err) {
+      console.error("Fetch Borrow Records Error:", err);
+      setError("Failed to load borrow records");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filtered = records.filter(
-    (r) =>
-      r.borrower.toLowerCase().includes(search.toLowerCase()) ||
-      r.book.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = records.filter((r) => {
+    const borrowerName = r.userId?.name?.toLowerCase() || "";
+    const bookTitle = r.bookId?.title?.toLowerCase() || "";
+    const q = search.toLowerCase();
+    return borrowerName.includes(q) || bookTitle.includes(q);
+  });
+
+  const isOverdue = (borrowDate, returnDate) => {
+    if (returnDate) return false;
+    const daysSince = (Date.now() - new Date(borrowDate)) / (1000 * 60 * 60 * 24);
+    return daysSince > 14;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Sidebar Drawer */}
-      {menuOpen && (
-        <div className="fixed inset-0 flex justify-end z-50">
-          <div
-            className="flex-1 bg-black bg-opacity-40"
-            onClick={() => setMenuOpen(false)}
-          />
-          <div className="w-64 bg-white h-full shadow-lg flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-lg font-semibold">Menu</h2>
-              <button onClick={() => setMenuOpen(false)}>
-                <X size={24} />
-              </button>
-            </div>
-            <ul className="flex flex-col p-4 gap-2">
-              <li
-                onClick={() => navigate("/librarian/profile")}
-                className={`px-3 py-2 rounded cursor-pointer ${
-                  isActive("/librarian/profile") ? "bg-gray-200 font-semibold" : "hover:bg-gray-100"
-                }`}
-              >
-                Profile
-              </li>
-
-              <li
-                onClick={() => navigate("/librarian/borrowers")}
-                className={`px-3 py-2 rounded cursor-pointer ${
-                  isActive("/librarian/borrowers") ? "bg-gray-200 font-semibold" : "hover:bg-gray-100"
-                }`}
-              >
-                Borrowers
-              </li>
-
-              <li
-                onClick={() => navigate("/librarian/borrow-records")}
-                className={`px-3 py-2 rounded cursor-pointer ${
-                  isActive("/librarian/borrow-records") ? "bg-gray-200 font-semibold" : "hover:bg-gray-100"
-                }`}
-              >
-                Borrow Records
-              </li>
-
-              <li className="px-3 py-2 rounded text-red-600 hover:bg-gray-100 cursor-pointer">
-                Logout
-              </li>
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
       <div className="p-6 flex flex-col gap-6">
+        <h2 className="text-xl font-semibold">Borrow Records</h2>
+
         {/* Search */}
         <input
           type="text"
@@ -89,44 +55,67 @@ export default function BorrowRecords() {
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        {/* Records Table */}
-        <div className="bg-white shadow rounded">
-          <table className="w-full border-collapse">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border px-4 py-2 text-left">Borrower</th>
-                <th className="border px-4 py-2 text-left">Book Title</th>
-                <th className="border px-4 py-2 text-left">Borrow Date</th>
-                <th className="border px-4 py-2 text-left">Return Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="border px-4 py-2">{r.borrower}</td>
-                  <td className="border px-4 py-2">{r.book}</td>
-                  <td className="border px-4 py-2">{r.borrowDate}</td>
-                  <td className="border px-4 py-2">{r.returnDate}</td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="text-center p-4 text-gray-500">
-                    No records found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {error && <div className="text-red-600">{error}</div>}
 
-        {/* Back to Dashboard */}
-        <button
-          onClick={() => navigate("/librarian/dashboard")}
-          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 w-fit"
-        >
-          Back to Dashboard
-        </button>
+        {/* Records Table */}
+        {loading ? (
+          <div>Loading...</div>
+        ) : (
+          <div className="bg-white shadow rounded">
+            <table className="w-full border-collapse">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-4 py-2 text-left">Borrower</th>
+                  <th className="border px-4 py-2 text-left">Email</th>
+                  <th className="border px-4 py-2 text-left">Book Title</th>
+                  <th className="border px-4 py-2 text-left">Borrow Date</th>
+                  <th className="border px-4 py-2 text-left">Return Date</th>
+                  <th className="border px-4 py-2 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r) => {
+                  const overdue = isOverdue(r.borrowDate, r.returnDate);
+                  return (
+                    <tr key={r._id} className="hover:bg-gray-50">
+                      <td className="border px-4 py-2">{r.userId?.name || "Unknown"}</td>
+                      <td className="border px-4 py-2">{r.userId?.email || "-"}</td>
+                      <td className="border px-4 py-2">{r.bookId?.title || "Unknown"}</td>
+                      <td className="border px-4 py-2">
+                        {new Date(r.borrowDate).toLocaleDateString()}
+                      </td>
+                      <td className="border px-4 py-2">
+                        {r.returnDate ? new Date(r.returnDate).toLocaleDateString() : "N/A"}
+                      </td>
+                      <td className="border px-4 py-2">
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            r.returnDate
+                              ? "bg-green-100 text-green-800"
+                              : overdue
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {r.returnDate ? "Returned" : overdue ? "Overdue" : "Borrowed"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-center p-4 text-gray-500">
+                      No records found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      
       </div>
     </div>
   );
