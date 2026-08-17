@@ -38,7 +38,7 @@ function App() {
   const noNavbarPaths = ["/", "/register"];
   const shouldShowNavbar = !noNavbarPaths.includes(location.pathname);
 
-    const role = localStorage.getItem("role") || "public";
+    const role = sessionStorage.getItem("role") || "public";
   return (
     <div className="min-h-dvh grid grid-rows-[auto,1fr,auto]">
   {shouldShowNavbar && <NavBar onOpenSidebar={() => setSidebarOpen(true)} />}
