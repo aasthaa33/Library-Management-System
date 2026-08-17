@@ -15,7 +15,7 @@ export default function ManageLibrarians() {
 
   const fetchLibrarians = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const res = await axios.get("http://localhost:5000/api/users?role=librarian", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -34,7 +34,7 @@ export default function ManageLibrarians() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this librarian?")) return;
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       await axios.delete(`http://localhost:5000/api/users/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -58,7 +58,7 @@ export default function ManageLibrarians() {
   // save edited librarian
   const handleSave = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       await axios.put(`http://localhost:5000/api/users/${editing}`, form, {
         headers: { Authorization: `Bearer ${token}` },
       });
