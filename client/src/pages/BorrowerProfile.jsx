@@ -1,214 +1,341 @@
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { Pencil } from "lucide-react";
+
+const API = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 export default function BorrowerProfile() {
   const navigate = useNavigate();
+  const { token, login } = useAuth();
 
-  // Example static data (replace with API fetch)
-  const user = {
-    name: "Ashwin Shahi",
-    email: "asathashahi@gmail.com",
-    role: "Borrower",
-    profilePic: "/profile.jpg",
-  };
+  const [profile, setProfile] = useState(null);
+  const [borrowHistory, setBorrowHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const favoriteBooks = [
-    { title: "The Alchemist", author: "Paulo Coelho", img: "/alchemist.jpg" },
-    { title: "1984", author: "George Orwell", img: "/1984.jpg" },
-    { title: "Atomic Habits", author: "James Clear", img: "/atomic.jpg" },
-  ];
+  // Edit info modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editData, setEditData] = useState({ name: "", email: "", phone: "" });
+  const [editError, setEditError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const borrowHistory = [
-    {
-      title: "To Kill a Mockingbird",
-      author: "Harper Lee",
-      borrowDate: "12 Aug 2025",
-      returnDate: "20 Aug 2025",
-      status: "Returned",
-    },
-    {
-      title: "The Great Gatsby",
-      author: "F. Scott Fitzgerald",
-      borrowDate: "15 Aug 2025",
-      returnDate: null,
-      status: "Borrowed",
-    },
-  ];
-
-  // State for image update
+  // Avatar modal
   const [picOpen, setPicOpen] = useState(false);
-  const [newImage, setNewImage] = useState(null);
+  const [newImageFile, setNewImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const fileInputRef = useRef();
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewImage(reader.result);  // Set the preview image
-      };
-      reader.readAsDataURL(file);
+  // ── Fetch profile + borrow history ──────────────────────────────────────────
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [profileRes, borrowRes] = await Promise.all([
+          fetch(`${API}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API}/api/borrow/my`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (!profileRes.ok) throw new Error("Failed to load profile");
+        const profileData = await profileRes.json();
+        setProfile(profileData.user);
+
+        if (borrowRes.ok) {
+          const borrowData = await borrowRes.json();
+          setBorrowHistory(borrowData.borrows || []);
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (token) fetchData();
+  }, [token]);
+
+  // ── Save info ────────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    setEditError("");
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/api/auth/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(editData),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Update failed");
+      setProfile(data.user);
+      login(data.user, token);
+      setEditOpen(false);
+    } catch (err) {
+      setEditError(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleSavePicture = () => {
-    if (newImage) {
-      user.profilePic = newImage;
+  // ── Save avatar ──────────────────────────────────────────────────────────────
+  const handleSaveAvatar = async () => {
+    if (!newImageFile) return;
+    setAvatarSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append("avatar", newImageFile);
+      const res = await fetch(`${API}/api/auth/me`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Upload failed");
+      setProfile(data.user);
+      login(data.user, token);
+      setPicOpen(false);
+      setNewImageFile(null);
+      setPreviewUrl(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAvatarSaving(false);
     }
-    setPicOpen(false);
   };
+
+  const avatarSrc = previewUrl
+    ? previewUrl
+    : profile?.avatar
+    ? `${API}${profile.avatar}`
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || "B")}&background=4f46e5&color=fff&size=160`;
+
+  if (loading) return <div className="p-8 text-gray-500">Loading profile...</div>;
+  if (error) return <div className="p-8 text-red-500">{error}</div>;
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Main Content */}
-      <div className="p-6 flex flex-col gap-6">
+      <div className="p-6 flex flex-col gap-6 max-w-4xl mx-auto w-full">
         <h1 className="text-2xl font-semibold">Profile</h1>
 
-        <div className="flex gap-10">
-          {/* Profile Picture */}
-          <div className="flex flex-col items-center">
-            <img
-              src={newImage || user.profilePic}
-              alt="Profile"
-              className="w-40 h-40 rounded-full object-cover border-2 border-gray-300 shadow-lg"
-            />
+        <div className="flex gap-10 flex-wrap">
+          {/* Avatar */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative">
+              <img
+                src={avatarSrc}
+                alt="Profile"
+                className="w-40 h-40 rounded-full object-cover border-2 border-gray-300 shadow-lg"
+              />
+              <button
+                onClick={() => setPicOpen(true)}
+                className="absolute bottom-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-100"
+                title="Change photo"
+              >
+                <Pencil size={14} />
+              </button>
+            </div>
             <button
               onClick={() => setPicOpen(true)}
-              className="mt-3 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
             >
               Edit Profile Picture
             </button>
           </div>
 
-          {/* Profile Info */}
+          {/* Info */}
           <div className="flex flex-col gap-4 w-80">
             <div>
-              <p className="text-sm font-semibold">Name</p>
-              <p className="font-medium">{user.name}</p>
+              <p className="text-sm text-gray-500">Name</p>
+              <p className="font-medium">{profile.name}</p>
             </div>
             <div>
-              <p className="text-sm font-semibold">Email</p>
-              <p className="font-medium">{user.email}</p>
+              <p className="text-sm text-gray-500">Email</p>
+              <p className="font-medium">{profile.email}</p>
             </div>
             <div>
-              <p className="text-sm font-semibold">Role</p>
-              <p className="font-medium">{user.role}</p>
+              <p className="text-sm text-gray-500">Phone</p>
+              <p className="font-medium">{profile.phone || "—"}</p>
             </div>
-
-            {/* Edit Profile Button */}
+            <div>
+              <p className="text-sm text-gray-500">Role</p>
+              <p className="font-medium capitalize">{profile.role}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Member Since</p>
+              <p className="font-medium">{new Date(profile.createdAt).toLocaleDateString()}</p>
+            </div>
             <button
-  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-  onClick={() => navigate("/borrower/edit-profile")}
->
-  Edit Profile Info
-</button>
-
-
-          </div>
-        </div>
-
-        {/* Favorite Books */}
-        <div className="bg-white shadow rounded-lg p-6 mt-6">
-          <h2 className="font-semibold text-lg mb-4">Favorite Books</h2>
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {favoriteBooks.map((book, idx) => (
-              <div
-                key={idx}
-                className="min-w-[150px] border rounded-lg p-3 flex-shrink-0"
-              >
-                <div className="h-40 bg-gray-200 flex items-center justify-center mb-2">
-                  <img
-                    src={book.img}
-                    alt={book.title}
-                    className="h-full object-cover"
-                  />
-                </div>
-                <p className="font-medium">{book.title}</p>
-                <p className="text-sm text-gray-600">{book.author}</p>
-              </div>
-            ))}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-fit"
+              onClick={() => {
+                setEditData({ name: profile.name, email: profile.email, phone: profile.phone || "" });
+                setEditError("");
+                setEditOpen(true);
+              }}
+            >
+              Edit Profile Info
+            </button>
           </div>
         </div>
 
         {/* Borrow History */}
-        <div className="bg-white shadow rounded-lg p-6 mt-6">
+        <div className="bg-white shadow rounded-lg p-6">
           <h2 className="font-semibold text-lg mb-4">Borrow History</h2>
-          <table className="w-full border">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border px-4 py-2">Title</th>
-                <th className="border px-4 py-2">Author</th>
-                <th className="border px-4 py-2">Borrowed On</th>
-                <th className="border px-4 py-2">Returned On</th>
-                <th className="border px-4 py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {borrowHistory.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="border px-4 py-2">{item.title}</td>
-                  <td className="border px-4 py-2">{item.author}</td>
-                  <td className="border px-4 py-2">{item.borrowDate}</td>
-                  <td className="border px-4 py-2">
-                    {item.returnDate || "Not Returned"}
-                  </td>
-                  <td className="border px-4 py-2">
-                    <span
-                      className={`px-2 py-1 rounded text-white ${
-                        item.status === "Returned"
-                          ? "bg-green-600"
-                          : "bg-yellow-500"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {borrowHistory.length === 0 ? (
+            <p className="text-gray-500 text-sm">No borrow records yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border px-4 py-2 text-left">Title</th>
+                    <th className="border px-4 py-2 text-left">Author</th>
+                    <th className="border px-4 py-2 text-left">ISBN</th>
+                    <th className="border px-4 py-2 text-left">Borrowed On</th>
+                    <th className="border px-4 py-2 text-left">Returned On</th>
+                    <th className="border px-4 py-2 text-left">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {borrowHistory.map((item) => (
+                    <tr key={item._id} className="hover:bg-gray-50">
+                      <td className="border px-4 py-2">{item.bookId?.title || "—"}</td>
+                      <td className="border px-4 py-2">{item.bookId?.author || "—"}</td>
+                      <td className="border px-4 py-2">{item.bookId?.isbn || "—"}</td>
+                      <td className="border px-4 py-2">
+                        {new Date(item.borrowDate).toLocaleDateString()}
+                      </td>
+                      <td className="border px-4 py-2">
+                        {item.returnDate
+                          ? new Date(item.returnDate).toLocaleDateString()
+                          : "Not Returned"}
+                      </td>
+                      <td className="border px-4 py-2">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            item.returnDate
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {item.returnDate ? "Returned" : "Borrowed"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Back Button */}
         <div className="flex justify-end">
-        <button
-          onClick={() => navigate("/borrower/dashboard")}
-          className="px-6 py-2 rounded  bg-gray-600 text-white hover:bg-gray-700"
-        >
-          Back to Dashboard
-        </button>
-      </div>
+          <button
+            onClick={() => navigate("/borrower/dashboard")}
+            className="px-6 py-2 rounded bg-gray-600 text-white hover:bg-gray-700"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       </div>
 
-      {/* Modal to Edit Profile Picture */}
-      {picOpen && (
+      {/* Edit Info Modal */}
+      {editOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 text-center">
-            <h3 className="text-lg font-bold mb-4">Update Profile Picture</h3>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="mb-4"
-            />
-            {newImage && (
-              <img
-                src={newImage}
-                alt="Preview"
-                className="w-32 h-32 rounded-lg object-cover mx-auto mb-4"
-              />
-            )}
-            <div className="flex justify-end gap-3">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 className="text-lg font-bold mb-4">Edit Profile Info</h3>
+            {editError && <p className="text-red-500 text-sm mb-3">{editError}</p>}
+            <div className="flex flex-col gap-3">
+              <label className="flex flex-col">
+                <span className="text-sm text-gray-600">Name</span>
+                <input
+                  type="text"
+                  value={editData.name}
+                  onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                  className="border p-2 rounded"
+                />
+              </label>
+              <label className="flex flex-col">
+                <span className="text-sm text-gray-600">Email</span>
+                <input
+                  type="email"
+                  value={editData.email}
+                  onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                  className="border p-2 rounded"
+                />
+              </label>
+              <label className="flex flex-col">
+                <span className="text-sm text-gray-600">Phone</span>
+                <input
+                  type="text"
+                  value={editData.phone}
+                  onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                  className="border p-2 rounded"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setPicOpen(false)}
+                onClick={() => setEditOpen(false)}
                 className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
               >
                 Cancel
               </button>
               <button
-                onClick={handleSavePicture}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
               >
-                Save
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Avatar Modal */}
+      {picOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96 text-center">
+            <h3 className="text-lg font-bold mb-4">Update Profile Picture</h3>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="mb-4"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  setNewImageFile(file);
+                  setPreviewUrl(URL.createObjectURL(file));
+                }
+              }}
+            />
+            {previewUrl && (
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="w-32 h-32 rounded-full object-cover mx-auto mb-4"
+              />
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { setPicOpen(false); setNewImageFile(null); setPreviewUrl(null); }}
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAvatar}
+                disabled={!newImageFile || avatarSaving}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
+              >
+                {avatarSaving ? "Uploading..." : "Save"}
               </button>
             </div>
           </div>
