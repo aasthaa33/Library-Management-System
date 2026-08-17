@@ -1,8 +1,8 @@
-import api from "../api";
+import api from "../api.js";
 
 export const getBooks = async () => {
   const response = await api.get("/books");
-  return response.data;
+  return { books: response.data };  // ✅ fixed
 };
 
 export const getBookById = async (id) => {
@@ -26,7 +26,7 @@ export const deleteBook = async (id) => {
 };
 
 export const borrowBook = async (bookId) => {
-  const response = await api.post("/borrow", { bookId });
+  const response = await api.post("/borrow/borrow", { bookId });  // ✅ fixed
   return response.data;
 };
 
