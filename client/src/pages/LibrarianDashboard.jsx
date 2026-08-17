@@ -9,27 +9,44 @@ export default function LibrarianDashboard() {
     author: "",
     isbn: "",
     publisher: "",
-    quantity: ""
+    quantity: "",
+    image: null,  
   });
+  const [imagePreview, setImagePreview] = useState(null); 
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
 
   useEffect(() => {
     loadBooks();
-    
   }, []);
 
-  const api = (path, opts = {}) =>
-    fetch(path, {
+  const [showEditModal, setShowEditModal] = useState(false);
+const [editBook, setEditBook] = useState({
+  id: "",
+  title: "",
+  author: "",
+  isbn: "",
+  publisher: "",
+  quantity: "",
+  image: null,       
+  currentImage: "",   
+});
+const [editImagePreview, setEditImagePreview] = useState(null);
+
+ 
+  const api = (path, opts = {}) => {
+    const isFormData = opts.body instanceof FormData;
+    return fetch(`http://localhost:5000${path}`, {
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       ...opts,
     });
+  };
 
   const loadBooks = async () => {
     setLoading(true);
@@ -47,6 +64,13 @@ export default function LibrarianDashboard() {
     }
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setNewBook({ ...newBook, image: file });
+    setImagePreview(URL.createObjectURL(file));   
+  };
+
   const handleAddBook = async () => {
     if (
       !newBook.title.trim() ||
@@ -59,18 +83,20 @@ export default function LibrarianDashboard() {
     }
     setError("");
     try {
-      const payload = {
-        title: newBook.title.trim(),
-        author: newBook.author.trim(),
-        isbn: newBook.isbn.trim(),
-        publisher: newBook.publisher.trim() || "Unknown",
-        quantity: Number(newBook.quantity) || 0,
-        available: Number(newBook.quantity) || 0, 
-      };
+    
+      const formData = new FormData();
+      formData.append("title", newBook.title.trim());
+      formData.append("author", newBook.author.trim());
+      formData.append("isbn", newBook.isbn.trim());
+      formData.append("publisher", newBook.publisher.trim() || "Unknown");
+      formData.append("quantity", Number(newBook.quantity) || 0);
+      if (newBook.image) {
+        formData.append("image", newBook.image);   
+      }
 
       const res = await api("/api/books", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: formData, 
       });
       if (!res.ok) {
         const txt = await res.text().catch(() => "Create failed");
@@ -78,7 +104,8 @@ export default function LibrarianDashboard() {
       }
       await loadBooks();
       setShowModal(false);
-      setNewBook({ title: "", author: "", isbn: "", publisher: "", quantity: "" });
+      setNewBook({ title: "", author: "", isbn: "", publisher: "", quantity: "", image: null });
+      setImagePreview(null);
     } catch (err) {
       console.error(err);
       setError("Failed to create book");
@@ -97,39 +124,68 @@ export default function LibrarianDashboard() {
     }
   };
 
-  const handleEdit = async (book) => {
-    const title = prompt("Title", book.title);
-    if (title == null) return;
-    const author = prompt("Author", book.author);
-    if (author == null) return;
-    const isbn = prompt("ISBN", book.isbn);
-    if (isbn == null) return;
-    const publisher = prompt("Publisher", book.publisher || "");
-    if (publisher == null) return;
-    const quantity = prompt("Quantity", String(book.quantity || 0));
-    if (quantity == null) return;
+  const openEditModal = (book) => {
+  setEditBook({
+    id: book._id || book.id,
+    title: book.title || "",
+    author: book.author || "",
+    isbn: book.isbn || "",
+    publisher: book.publisher || "",
+    quantity: String(book.quantity || 0),
+    image: null,
+    currentImage: book.image || "",
+  });
+  setEditImagePreview(null);
+  setShowEditModal(true);
+};
 
-    try {
-      const payload = {
-        title,
-        author,
-        isbn,
-        publisher,
-        quantity: Number(quantity) || 0,
-        available: Number(quantity) || 0, 
-      };
-      const id = book._id || book.id;
-      const res = await api(`/api/books/${id}`, {
-        method: "PUT", 
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Update failed");
-      await loadBooks();
-    } catch (err) {
-      console.error(err);
-      setError("Failed to update");
+const handleEditImageChange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setEditBook({ ...editBook, image: file });
+  setEditImagePreview(URL.createObjectURL(file));
+};
+
+const handleEditSubmit = async () => {
+  if (
+    !editBook.title.trim() ||
+    !editBook.author.trim() ||
+    !editBook.isbn.trim() ||
+    !editBook.publisher.trim()
+  ) {
+    setError("Title, Author, ISBN and Publisher are required");
+    return;
+  }
+  setError("");
+  try {
+    const formData = new FormData();
+    formData.append("title", editBook.title.trim());
+    formData.append("author", editBook.author.trim());
+    formData.append("isbn", editBook.isbn.trim());
+    formData.append("publisher", editBook.publisher.trim());
+    formData.append("quantity", Number(editBook.quantity) || 0);
+    formData.append("available", Number(editBook.quantity) || 0);
+    if (editBook.image) {
+      formData.append("image", editBook.image);   // नयाँ image थियो भने मात्र पठाउने
     }
-  };
+
+    const res = await api(`/api/books/${editBook.id}`, {
+      method: "PUT",
+      body: formData,
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "Update failed");
+      throw new Error(txt);
+    }
+    await loadBooks();
+    setShowEditModal(false);
+    setEditImagePreview(null);
+  } catch (err) {
+    console.error(err);
+    setError("Failed to update");
+  }
+};
+  
 
   const filtered = books.filter((b) => {
     const q = search.toLowerCase();
@@ -171,6 +227,7 @@ export default function LibrarianDashboard() {
             <table className="w-full border-collapse">
               <thead className="bg-gray-100">
                 <tr>
+                  <th className="border px-4 py-2 text-left">Image</th>
                   <th className="border px-4 py-2 text-left">Title</th>
                   <th className="border px-4 py-2 text-left">Author</th>
                   <th className="border px-4 py-2 text-left">ISBN</th>
@@ -186,6 +243,19 @@ export default function LibrarianDashboard() {
                   const qty = Number(book.quantity || 0);
                   return (
                     <tr key={id} className="hover:bg-gray-50">
+                      <td className="border px-4 py-2">
+                        {book.image ? (
+                          <img
+                            src={`http://localhost:5000${book.image}`}
+                            alt={book.title}
+                            className="w-12 h-16 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-400">
+                            No image
+                          </div>
+                        )}
+                      </td>
                       <td className="border px-4 py-2">{book.title}</td>
                       <td className="border px-4 py-2">{book.author}</td>
                       <td className="border px-4 py-2">{book.isbn}</td>
@@ -194,7 +264,7 @@ export default function LibrarianDashboard() {
                       <td className="border px-4 py-2">{qty > 0 ? "Yes" : "No"}</td>
                       <td className="border px-4 py-2 text-center space-x-2">
                         <button
-                          onClick={() => handleEdit(book)}
+                          onClick={() => openEditModal(book)}
                           className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                         >
                           Edit
@@ -211,7 +281,7 @@ export default function LibrarianDashboard() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="text-center p-4 text-gray-500">
+                    <td colSpan="8" className="text-center p-4 text-gray-500">
                       No books found
                     </td>
                   </tr>
@@ -260,16 +330,36 @@ export default function LibrarianDashboard() {
             <input
               type="number"
               placeholder="Quantity"
-              className="border w-full px-3 py-2 mb-4 rounded"
+              className="border w-full px-3 py-2 mb-2 rounded"
               value={newBook.quantity}
               onChange={(e) =>
                 setNewBook({ ...newBook, quantity: e.target.value })
               }
             />
+
+            
+            <label className="block text-sm text-gray-600 mb-1">Book Cover Image</label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="border w-full px-3 py-2 mb-2 rounded"
+              onChange={handleImageChange}
+            />
+            {imagePreview && (
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="w-20 h-28 object-cover rounded mb-4 border"
+              />
+            )}
+
             <div className="flex justify-end gap-2">
               <button
                 className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  setImagePreview(null);
+                }}
               >
                 Cancel
               </button>
@@ -283,6 +373,93 @@ export default function LibrarianDashboard() {
           </div>
         </div>
       )}
+      {/* Edit Book Modal */}
+{showEditModal && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+    <div className="bg-white p-6 rounded-lg w-full max-w-lg shadow-lg">
+      <h2 className="text-lg font-semibold mb-4">Edit Book</h2>
+      <input
+        type="text"
+        placeholder="Title"
+        className="border w-full px-3 py-2 mb-2 rounded"
+        value={editBook.title}
+        onChange={(e) => setEditBook({ ...editBook, title: e.target.value })}
+      />
+      <input
+        type="text"
+        placeholder="Author"
+        className="border w-full px-3 py-2 mb-2 rounded"
+        value={editBook.author}
+        onChange={(e) => setEditBook({ ...editBook, author: e.target.value })}
+      />
+      <input
+        type="text"
+        placeholder="ISBN"
+        className="border w-full px-3 py-2 mb-2 rounded"
+        value={editBook.isbn}
+        onChange={(e) => setEditBook({ ...editBook, isbn: e.target.value })}
+      />
+      <input
+        type="text"
+        placeholder="Publisher"
+        className="border w-full px-3 py-2 mb-2 rounded"
+        value={editBook.publisher}
+        onChange={(e) => setEditBook({ ...editBook, publisher: e.target.value })}
+      />
+      <input
+        type="number"
+        placeholder="Quantity"
+        className="border w-full px-3 py-2 mb-2 rounded"
+        value={editBook.quantity}
+        onChange={(e) => setEditBook({ ...editBook, quantity: e.target.value })}
+      />
+
+      <label className="block text-sm text-gray-600 mb-1">Book Cover Image</label>
+
+      {/* अहिलेको image देखाउने (नयाँ select नगरेसम्म) */}
+      {!editImagePreview && editBook.currentImage && (
+        <img
+          src={`http://localhost:5000${editBook.currentImage}`}
+          alt="Current"
+          className="w-20 h-28 object-cover rounded mb-2 border"
+        />
+      )}
+
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="border w-full px-3 py-2 mb-2 rounded"
+        onChange={handleEditImageChange}
+      />
+
+      {editImagePreview && (
+        <img
+          src={editImagePreview}
+          alt="New preview"
+          className="w-20 h-28 object-cover rounded mb-4 border"
+        />
+      )}
+
+      <div className="flex justify-end gap-2 mt-2">
+        <button
+          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          onClick={() => {
+            setShowEditModal(false);
+            setEditImagePreview(null);
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          onClick={handleEditSubmit}
+        >
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
