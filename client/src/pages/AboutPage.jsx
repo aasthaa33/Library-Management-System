@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 export default function About() {
   const navigate = useNavigate();
 
-  const userRole = localStorage.getItem("role"); 
+  const userRole = sessionStorage.getItem("role"); 
 
   const handleLearnMore = () => {
     if (!userRole) {
