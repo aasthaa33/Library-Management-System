@@ -4,7 +4,7 @@ import { useState } from "react";
 
 export default function Contact() {
   const navigate = useNavigate();
-  const userRole = localStorage.getItem("role");
+  const userRole = sessionStorage.getItem("role");
 
   const [form, setForm] = useState({
     name: "",
